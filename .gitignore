@@ -1,0 +1,37 @@
+# Ignore tools folder
+/tools/
+
+# Environment and config
+.env
+.env.local
+config/local.php
+
+# OS files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDE
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Dependencies
+/vendor/
+/node_modules/
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.bak
+.cache/
+
+# Database files
+*.sqlite
+*.db

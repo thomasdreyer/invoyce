@@ -1,11 +1,12 @@
 # Invoice Management System
 
-A modern, mobile-friendly invoice management application for creating, editing, viewing, and managing invoices. Perfect for small businesses and freelancers.
+A modern, mobile-friendly invoice management application with OTP authentication for creating, editing, viewing, and managing invoices. Perfect for small businesses and freelancers.
 
 ## ✨ Features
 
 | Feature | Description |
 |---------|-------------|
+| 🔐 **OTP Login** | Secure one-time password authentication |
 | 📝 **Create Invoices** | Create new invoices with customer details and line items |
 | ✏️ **Edit Invoices** | Modify existing invoices and update details |
 | 👁️ **View Invoices** | View detailed invoice information |
@@ -17,9 +18,19 @@ A modern, mobile-friendly invoice management application for creating, editing, 
 | 💰 **Flexible Discounts** | Item-level and invoice-level discounts |
 | 📊 **Tax Calculation** | Automatic VAT/tax calculation (15%) |
 
+## ✅ Authentication & Testing
+
+**OTP (One-Time Password) Login System**
+- Login via OTP code sent to email
+- Test credentials available for all environments (localhost and deployed):
+  - **Email**: `test@invoyce.com`
+  - **OTP Code**: `123456`
+- On production (cPanel), OTP codes are emailed via PHP `mail()` function
+- On localhost, OTP code is shown in debug message for convenience
+
 ## 📋 Requirements
 
-- **PHP** 7.4 or higher
+- **PHP** 7.4 or higher with `mail()` support (for production OTP emails)
 - **MySQL** 5.7 or higher
 - **Web Server** Apache, Nginx, or built-in PHP server
 - **Modern Browser** (Chrome, Firefox, Safari, Edge)
@@ -28,9 +39,20 @@ A modern, mobile-friendly invoice management application for creating, editing, 
 
 ### 1. Setup Database
 
-Run this SQL to create tables:
+Create the database and run all SQL to create tables:
+
+```bash
+mysql -u root -e "CREATE DATABASE IF NOT EXISTS invoice_app"
+mysql -u root invoice_app < sql/add_invoice_number.sql
+mysql -u root invoice_app < sql/add_auth_tables.sql
+```
+
+Or manually run this SQL:
 
 ```sql
+CREATE DATABASE IF NOT EXISTS invoice_app;
+USE invoice_app;
+
 CREATE TABLE customers (
   id INT AUTO_INCREMENT PRIMARY KEY,
   name VARCHAR(255) NOT NULL,
@@ -78,9 +100,37 @@ CREATE TABLE invoice_items (
   FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE CASCADE,
   INDEX idx_invoice (invoice_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE users (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  email VARCHAR(255) NOT NULL UNIQUE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE otp_codes (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  email VARCHAR(255) NOT NULL,
+  code VARCHAR(10) NOT NULL,
+  expires_at DATETIME NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_email (email),
+  INDEX idx_expires_at (expires_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
-### 2. Configure Database
+### 2. Verify Database Migrations
+
+Ensure all migration files have been applied:
+
+```bash
+# Add invoice_number column (if not already added)
+mysql -u root invoice_app < sql/add_invoice_number.sql
+
+# Create auth tables (users and otp_codes)
+mysql -u root invoice_app < sql/add_auth_tables.sql
+```
+
+### 3. Configure Database
 
 Edit `config/db.php`:
 
@@ -101,7 +151,7 @@ $options = [
 $pdo = new PDO($dsn, $user, $pass, $options);
 ```
 
-### 3. Run the Application
+### 4. Run the Application
 
 Using PHP's built-in server:
 
@@ -109,19 +159,55 @@ Using PHP's built-in server:
 php -S localhost:8000
 ```
 
-Then open `http://localhost:8000` in your browser.
+Then open `http://localhost:8000/login.html` in your browser to login.
+
+Use test credentials:
+- **Email**: `test@invoyce.com`
+- **OTP**: `123456`
+
+## 🔐 OTP Login Setup
+
+The application uses OTP (One-Time Password) authentication. Users login with their email and receive a code.
+
+### Test on Localhost
+
+1. Open `http://localhost:8000/login.html`
+2. Enter `test@invoyce.com`
+3. Click "Request OTP"
+4. A debug message shows the code: `123456`
+5. Enter the code and click "Verify OTP"
+6. You'll be logged in and redirected to the dashboard
+
+### Test on Deployed Server (cPanel, etc.)
+
+1. Open `login.html` on your domain
+2. Enter `test@invoyce.com`
+3. Click "Request OTP"
+4. Check your email for the OTP code (uses server's `mail()` function)
+5. Enter the code and verify
+6. Access your dashboard
+
+### Production Use (Real Users)
+
+1. Users enter their email at login
+2. OTP code is generated and sent via email (requires `mail()` to work)
+3. Email is sent from `admin@dreyerventures`
+4. User verifies code and is auto-created in the system
+5. User is logged in and can manage invoices
 
 ## 📁 Project Structure
 
 ```
 invoyce/
-├── index.html              # Dashboard - List all invoices
-├── create_invoice.html     # Create new invoice
-├── view_invoice.html       # View invoice details
-├── edit_invoice.html       # Edit existing invoice
+├── login.html              # OTP Login page
+├── index.html              # Dashboard - List all invoices (protected)
+├── create_invoice.html     # Create new invoice (protected)
+├── view_invoice.html       # View invoice details (protected)
+├── edit_invoice.html       # Edit existing invoice (protected)
 ├── config/
 │   └── db.php             # Database configuration
 ├── api/
+│   ├── auth.php           # OTP authentication (request & verify)
 │   ├── invoices.php       # Main invoice API (create, read, update, delete)
 │   ├── customers.php      # Customer management
 │   ├── invoices_list.php  # List all invoices
@@ -129,36 +215,56 @@ invoyce/
 │   ├── export_pdf.php     # PDF export
 │   └── share_invoice.php  # Public invoice view
 ├── assets/
-│   ├── styles.css         # Main stylesheet (responsive)
-│   └── app.js             # Frontend logic
+│   ├── styles.css         # Main stylesheet (responsive, modern design)
+│   └── app.js             # Frontend logic (auth guard, invoice forms)
 ├── sql/
-│   └── add_invoice_number.sql  # Migration file
-└── MIGRATION.md            # Database migration guide
+│   ├── add_invoice_number.sql  # Add invoice_number column migration
+│   └── add_auth_tables.sql     # Create users & otp_codes tables
+├── tools/
+│   ├── extract_pdf.py     # PDF extraction tool (internal)
+│   └── extract_images.py  # Image extraction tool (internal)
+└── README.md              # This file - setup & usage guide
 ```
 
 ## 🎯 Usage
 
-### Creating an Invoice
-1. Click "Create New Invoice" on dashboard
-2. Select or add a customer
-3. Add line items with descriptions, quantities, and prices
-4. Set discounts if needed
-5. Review totals and save
+### 1. Login
+1. Go to `/login.html`
+2. Enter email (use `test@invoyce.com` for testing)
+3. Click "Request OTP"
+4. Check email (or see debug code on localhost)
+5. Enter OTP code and verify
+6. You're logged in and redirected to dashboard
 
-### Editing an Invoice
+### 2. Creating an Invoice
+1. Click "Create Invoice" on dashboard or nav
+2. Select or add a customer
+3. Set invoice and due dates
+4. Add line items with descriptions, quantities, and prices
+5. Set item-level or invoice-level discounts
+6. Review totals (auto-calculated with 15% VAT)
+7. Save invoice
+
+### 3. Editing an Invoice
 1. Go to dashboard and click "Edit" on any invoice
 2. Modify customer, dates, items, or discounts
-3. Save changes
+3. Totals update automatically
+4. Save changes
 
-### Viewing an Invoice
+### 4. Viewing an Invoice
 1. Click "View" on the dashboard
 2. See full details, customer info, and line items
 3. Options to edit, delete, export PDF, or generate share link
 
-### Sharing an Invoice
+### 5. Sharing an Invoice
 1. Open invoice and click "Get Share Link"
 2. Share the URL with customer
-3. Customer can view invoice without authentication
+3. Customer can view invoice without login (public link)
+
+### 6. Logout
+1. Click your email in the top-right nav
+2. Click "Logout"
+3. You're logged out and redirected to login page
 
 ## 🔧 API Endpoints
 
@@ -182,60 +288,115 @@ invoyce/
 
 ## 🐛 Troubleshooting
 
+### Login Issues
+
+**"OTP sent to email" but I don't receive it**
+- ✓ On localhost: code is shown in debug alert (not emailed)
+- ✓ On production: ensure `mail()` is configured on your server
+- ✓ Check email spam folder
+- ✓ Verify cPanel mail settings if hosted
+
+**Test credentials not working**
+- ✓ Ensure `sql/add_auth_tables.sql` has been run
+- ✓ Try email: `test@invoyce.com` and OTP: `123456`
+- ✓ Reload the page if it seems stuck
+
 ### Database Connection Error
-- ✓ Check `config/db.php` credentials
-- ✓ Verify MySQL is running
-- ✓ Confirm database exists
+- ✓ Check `config/db.php` credentials match your MySQL setup
+- ✓ Verify MySQL is running (`mysql -u root` should connect)
+- ✓ Confirm database exists: `mysql -u root -e "SHOW DATABASES"`
+- ✓ Ensure all migrations have been run
 
-### Missing invoice_number Column
-Run this migration:
-```sql
-ALTER TABLE invoices ADD COLUMN invoice_number VARCHAR(20) UNIQUE AFTER id;
-CREATE INDEX idx_invoice_number ON invoices(invoice_number);
-```
-
-Or run:
+### Missing Tables
+Run all migrations:
 ```bash
 mysql -u root invoice_app < sql/add_invoice_number.sql
+mysql -u root invoice_app < sql/add_auth_tables.sql
 ```
+
+### Page Redirects to Login
+- ✓ You must login first (OTP required)
+- ✓ All pages except `login.html` require authentication
+- ✓ Clear browser storage: `localStorage.removeItem('invoyce_user')`
 
 ### Page Not Found (404)
 - ✓ Ensure all files are in correct directories
-- ✓ Check web server is serving files
-- ✓ Verify file permissions
+- ✓ Check web server is serving the app root
+- ✓ Verify file permissions (644 for files, 755 for folders)
 
 ### Buttons Not Working
-- ✓ Check browser console for JavaScript errors
+- ✓ Check browser console for JavaScript errors (F12 → Console)
 - ✓ Ensure `assets/app.js` is loading
-- ✓ Clear browser cache
+- ✓ Clear browser cache (Ctrl+Shift+Delete)
+- ✓ Try incognito/private browsing mode
 
 ## ⚙️ Configuration
 
 ### Changing Tax Rate
 
-Edit `assets/app.js`, find `recalc()` function:
+Edit `assets/app.js`, find the `recalc()` function:
 
 ```javascript
-const tax = subtotal * 0.15;  // Change 0.15 to your rate
+const tax = subtotal * 0.15;  // Change 0.15 to desired rate (e.g., 0.10 for 10%)
 ```
 
 ### Changing Currency Symbol
 
-Edit `assets/app.js` and `view_invoice.html`:
+Edit currency symbol in:
+- `assets/app.js` (search for `R` in display functions)
+- `view_invoice.html` (search for `R` in totals display)
 
-Replace `R` with your currency symbol (e.g., `$`, `€`, `£`)
+Replace `R` with your currency (e.g., `$`, `€`, `£`, `¥`)
+
+### Changing Email For OTP Sender
+
+Edit `api/auth.php`, find the email sending section:
+
+```php
+$headers = "From: admin@dreyerventures\r\n" .
+           "Reply-To: admin@dreyerventures\r\n";
+```
+
+Replace with your email address.
+
+### Customizing OTP Expiry Time
+
+Edit `api/auth.php`, find OTP generation:
+
+```php
+$expiresAt = (new DateTime('+10 minutes'))->format('Y-m-d H:i:s');
+// Change '+10 minutes' to desired timeframe
+```
 
 ## 🔐 Security Notes
 
-⚠️ **Important**: This app has NO authentication. For production use:
+⚠️ **Important**: Production deployment checklist:
 
-- ✓ Add user authentication (login system)
-- ✓ Add authorization checks (who can see what)
-- ✓ Use HTTPS (SSL certificate)
-- ✓ Sanitize all inputs
-- ✓ Add CORS headers
-- ✓ Implement rate limiting
-- ✓ Add audit logging
+### Authentication & Access
+- ✅ OTP login system implemented
+- ✅ Session storage via localStorage (can be improved to server sessions)
+- ✓ Add authorization checks (users can only see their own invoices)
+- ✓ Implement server-side session validation
+
+### Network & Transport
+- ✓ Use HTTPS (SSL certificate required)
+- ✓ Update domain in `api/auth.php` for email sender
+- ✓ Configure proper mail() or SMTP for email delivery
+- ✓ Add CORS headers if API is accessed from different domain
+
+### Data & Validation
+- ✅ All inputs are validated and sanitized
+- ✅ PDO prepared statements prevent SQL injection
+- ✓ Add rate limiting on OTP requests (prevent brute force)
+- ✓ Add audit logging for invoice changes
+- ✓ Implement IP-based rate limiting
+
+### Environment
+- ✓ Set `display_errors = Off` in production `php.ini`
+- ✓ Store database credentials securely (not in repo)
+- ✓ Use environment variables for sensitive config
+- ✓ Keep PHP and MySQL updated
+- ✓ Regular database backups
 
 ## 📄 License
 
@@ -243,11 +404,15 @@ MIT License - Free to use and modify for personal or commercial projects.
 
 ## 💡 Future Enhancements
 
-- [ ] User authentication and multi-user support
-- [ ] Payment gateway integration
-- [ ] Email sending for invoices
-- [ ] Recurring invoices
-- [ ] Invoice templates
-- [ ] Analytics and reports
+- [ ] Payment gateway integration (Stripe, PayPal)
+- [ ] Email invoice delivery to customers
+- [ ] Recurring/subscription invoices
+- [ ] Invoice templates (different styles/layouts)
+- [ ] Analytics and financial reports
 - [ ] Multi-currency support
 - [ ] Advanced search and filtering
+- [ ] Invoice reminders (automatic emails)
+- [ ] Multi-user teams (shared access)
+- [ ] Two-factor authentication (2FA)
+- [ ] Webhook support for integrations
+- [ ] Mobile app (iOS/Android)

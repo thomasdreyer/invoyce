@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - Invoyce</title>
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+<nav class="appbar">
+  <div class="inner">
+    <div style="display:flex;align-items:center;gap:12px">
+      <a class="brand" href="index.html">Invoice App</a>
+    </div>
+    <div class="nav-actions">
+      <div id="navUser" class="nav-user"></div>
+    </div>
+  </div>
+</nav>
+
+<div class="container">
+  <h2>Sign in with OTP</h2>
+
+  <div id="authMessage" class="alert" style="display:none;"></div>
+
+  <form id="requestForm">
+    <label>Email</label>
+    <input type="email" id="authEmail" required>
+    <button type="submit" class="btn btn-primary">Request OTP</button>
+  </form>
+
+  <hr>
+
+  <form id="verifyForm">
+    <label>Enter OTP</label>
+    <input type="text" id="authCode" required>
+    <button type="submit" class="btn btn-primary">Verify OTP</button>
+  </form>
+
+</div>
+
+<script src="assets/app.js"></script>
+<script>
+document.getElementById('requestForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = document.getElementById('authEmail').value.trim();
+  const msg = document.getElementById('authMessage');
+  msg.style.display = 'none';
+  try {
+    const res = await fetch('api/auth.php?action=request_otp', {
+      method: 'POST',
+      body: new URLSearchParams({ email })
+    });
+    const data = await res.json();
+    if (data.success) {
+      msg.textContent = data.message || 'OTP sent';
+      msg.className = 'alert alert-success';
+      msg.style.display = 'block';
+      if (data.debug_code) {
+        // show debug code for localhost convenience
+        alert('Dev OTP: ' + data.debug_code);
+      }
+    } else {
+      msg.textContent = data.message || 'Error requesting OTP';
+      msg.className = 'alert alert-error';
+      msg.style.display = 'block';
+    }
+  } catch (err) {
+    msg.textContent = 'Network error';
+    msg.className = 'alert alert-error';
+    msg.style.display = 'block';
+  }
+});
+
+document.getElementById('verifyForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = document.getElementById('authEmail').value.trim();
+  const code = document.getElementById('authCode').value.trim();
+  const msg = document.getElementById('authMessage');
+  msg.style.display = 'none';
+  try {
+    const res = await fetch('api/auth.php?action=verify_otp', {
+      method: 'POST',
+      body: new URLSearchParams({ email, code })
+    });
+    const data = await res.json();
+    if (data.success) {
+      // store simple session marker
+      localStorage.setItem('invoyce_user', JSON.stringify(data.user));
+      window.location.href = 'index.html';
+    } else {
+      msg.textContent = data.message || 'Invalid OTP';
+      msg.className = 'alert alert-error';
+      msg.style.display = 'block';
+    }
+  } catch (err) {
+    msg.textContent = 'Network error';
+    msg.className = 'alert alert-error';
+    msg.style.display = 'block';
+  }
+});
+</script>
+</body>
+</html>

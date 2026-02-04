@@ -1,6 +1,29 @@
 // app.js
 
 document.addEventListener('DOMContentLoaded', () => {
+  // --- Auth guard: redirect users to login when not authenticated ---
+  const path = window.location.pathname.split('/').pop();
+  const storedUser = localStorage.getItem('invoyce_user');
+  if (path !== 'login.html' && !storedUser) {
+    window.location.href = 'login.html';
+    return;
+  }
+  if (path === 'login.html' && storedUser) {
+    window.location.href = 'index.html';
+    return;
+  }
+
+  // --- Nav user display and logout ---
+  const navUserEl = document.getElementById('navUser');
+  const user = currentUser();
+  if (navUserEl) {
+    if (user) {
+      navUserEl.innerHTML = `${user.email} <button onclick="logout()">Logout</button>`;
+    } else {
+      navUserEl.innerHTML = `<a href="login.html" style="color:#fff;text-decoration:none">Login</a>`;
+    }
+  }
+
   // --- Set default dates for create invoice page ---
   const invoiceDateInput = document.querySelector('input[name="invoice_date"]');
   const dueDateInput = document.querySelector('input[name="due_date"]');
@@ -367,3 +390,34 @@ function submitInvoice(e) {
     console.error('Validation error:', err);
   }
 }
+
+// -------------------- Authentication Helpers --------------------
+async function requestOtp(email) {
+  const res = await fetch('api/auth.php?action=request_otp', {
+    method: 'POST',
+    body: new URLSearchParams({ email })
+  });
+  return res.json();
+}
+
+async function verifyOtp(email, code) {
+  const res = await fetch('api/auth.php?action=verify_otp', {
+    method: 'POST',
+    body: new URLSearchParams({ email, code })
+  });
+  return res.json();
+}
+
+function currentUser() {
+  try {
+    return JSON.parse(localStorage.getItem('invoyce_user')) || null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function logout() {
+  localStorage.removeItem('invoyce_user');
+  window.location.href = 'login.html';
+}
+
