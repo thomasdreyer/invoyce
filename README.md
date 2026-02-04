@@ -41,13 +41,6 @@ A modern, mobile-friendly invoice management application with OTP authentication
 
 Create the database and run all SQL to create tables:
 
-```bash
-mysql -u root -e "CREATE DATABASE IF NOT EXISTS invoice_app"
-mysql -u root invoice_app < sql/add_invoice_number.sql
-mysql -u root invoice_app < sql/add_auth_tables.sql
-```
-
-Or manually run this SQL:
 
 ```sql
 CREATE DATABASE IF NOT EXISTS invoice_app;
@@ -118,19 +111,7 @@ CREATE TABLE otp_codes (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
-### 2. Verify Database Migrations
-
-Ensure all migration files have been applied:
-
-```bash
-# Add invoice_number column (if not already added)
-mysql -u root invoice_app < sql/add_invoice_number.sql
-
-# Create auth tables (users and otp_codes)
-mysql -u root invoice_app < sql/add_auth_tables.sql
-```
-
-### 3. Configure Database
+### 2. Configure Database
 
 Edit `config/db.php`:
 
@@ -189,11 +170,7 @@ The application uses OTP (One-Time Password) authentication. Users login with th
 
 ### Production Use (Real Users)
 
-1. Users enter their email at login
-2. OTP code is generated and sent via email (requires `mail()` to work)
-3. Email is sent from `admin@dreyerventures`
-4. User verifies code and is auto-created in the system
-5. User is logged in and can manage invoices
+TODO
 
 ## 📁 Project Structure
 
