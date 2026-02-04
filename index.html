@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Invoices Dashboard</title>
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+
+<nav style="background: #2563eb; padding: 0 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+  <div style="max-width: 1100px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; height: 56px;">
+    <a href="index.html" style="color: white; font-weight: 600; font-size: 18px; text-decoration: none;">Invoice App</a>
+  </div>
+</nav>
+
+<div class="container">
+  <h1>Invoices</h1>
+  <a href="create_invoice.html" class="btn btn-primary">Create New Invoice</a>
+  
+  <div id="invoiceDashboard" class="dashboard">
+    <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+      <thead>
+        <tr style="background: #f5f5f5;">
+          <th style="padding: 10px; text-align: left; border-bottom: 2px solid #333;">Invoice #</th>
+          <th style="padding: 10px; text-align: left; border-bottom: 2px solid #333;">Customer</th>
+          <th style="padding: 10px; text-align: right; border-bottom: 2px solid #333;">Subtotal</th>
+          <th style="padding: 10px; text-align: right; border-bottom: 2px solid #333;">Tax</th>
+          <th style="padding: 10px; text-align: right; border-bottom: 2px solid #333;">Total</th>
+          <th style="padding: 10px; text-align: left; border-bottom: 2px solid #333;">Status</th>
+          <th style="padding: 10px; text-align: center; border-bottom: 2px solid #333;">Actions</th>
+        </tr>
+      </thead>
+      <tbody id="invoicesTableBody">
+        <tr><td colspan="7" style="padding: 20px; text-align: center; color: #999;">Loading invoices...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script src="assets/app.js"></script>
+</body>
+</html>

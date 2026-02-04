@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Create Invoice</title>
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+
+<nav style="background: #2563eb; padding: 0 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+  <div style="max-width: 1100px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; height: 56px;">
+    <a href="index.html" style="color: white; font-weight: 600; font-size: 18px; text-decoration: none;">Invoice App</a>
+    <a href="index.html" style="color: white; text-decoration: none; padding: 8px 14px; border-radius: 4px; transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='transparent'">← Back to Dashboard</a>
+  </div>
+</nav>
+
+<div class="container">
+  <h1>Create Invoice</h1>
+
+  <!-- Customer selection -->
+  <div class="customer-section">
+    <select id="customerSelect" required>
+      <option value="">Select Customer</option>
+    </select>
+    <button type="button" id="toggleCustomerBtn" class="btn btn-info">Add Customer</button>
+
+    <!-- Add customer form -->
+    <div id="addCustomerForm" style="display:none;">
+      <input type="text" id="newCustomerName" placeholder="Customer Name">
+      <input type="email" id="newCustomerEmail" placeholder="Customer Email">
+      <div id="customerMessage" class="alert" style="display:none;"></div>
+      <button type="button" id="addCustomerBtn" class="btn btn-success">Add</button>
+      <button type="button" id="cancelCustomerBtn" class="btn btn-secondary">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Invoice details -->
+  <form id="invoiceForm">
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+      <label>Invoice Date: <input type="date" name="invoice_date" required></label>
+      <label>Due Date: <input type="date" name="due_date" required></label>
+    </div>
+
+    <!-- Items table -->
+    <div style="overflow-x: auto; margin: 20px 0;">
+      <table id="itemsTable">
+        <thead>
+          <tr>
+            <th>Description</th>
+            <th>Qty</th>
+            <th>Price</th>
+            <th>Discount %</th>
+            <th>Discount Amount</th>
+            <th>Line Total</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Rows added dynamically -->
+        </tbody>
+      </table>
+    </div>
+    <button type="button" id="addItemBtn" class="btn btn-info">Add Item</button>
+
+    <!-- Invoice Discounts -->
+    <div style="margin: 20px 0; padding: 16px; background: #f9f9f9; border-radius: 8px;">
+      <h3 style="margin-top: 0;">Invoice Discounts</h3>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+        <label style="margin-top: 0;">Discount % 
+          <input type="number" id="invoice_discount_percent" name="invoice_discount_percent" value="0" min="0" max="100" step="0.01" onchange="recalc()">
+        </label>
+        <label style="margin-top: 0;">Discount Amount (R)
+          <input type="number" id="invoice_discount_amount" name="invoice_discount_amount" value="0" min="0" step="0.01" onchange="recalc()">
+        </label>
+      </div>
+      <p style="font-size: 12px; color: #666; margin: 10px 0 0 0;">Use either percentage OR amount, not both</p>
+    </div>
+
+    <!-- Totals -->
+    <div style="background: white; padding: 16px; border-radius: 8px; margin: 20px 0;">
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 14px;">
+        <div>Subtotal</div><div style="text-align: right;" id="subtotal">0.00</div>
+        <div>Tax (15%)</div><div style="text-align: right;" id="tax">0.00</div>
+        <div id="invoiceDiscountRow" style="display:none;">Discount</div><div id="invoice_discount" style="display:none; text-align: right;">0.00</div>
+        <div style="font-weight: bold; border-top: 2px solid #333; padding-top: 10px;">Total</div><div style="font-weight: bold; text-align: right; border-top: 2px solid #333; padding-top: 10px;" id="total">0.00</div>
+      </div>
+    </div>
+
+    <div id="formMessage" class="alert" style="display:none; margin-bottom: 16px;"></div>
+    <button type="submit" class="btn btn-primary">Save Invoice</button>
+  </form>
+
+</div>
+
+<script src="assets/app.js"></script>
+</body>
+</html>

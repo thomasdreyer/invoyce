@@ -1,5 +1,5 @@
 <?php
-require './config/db.php';
+require '../config/db.php';
 
 $token = $_GET['token'] ?? null;
 

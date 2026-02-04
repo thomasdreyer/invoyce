@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Edit Invoice</title>
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+
+<nav style="background: #2563eb; padding: 0 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+  <div style="max-width: 1100px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; height: 56px;">
+    <a href="index.html" style="color: white; font-weight: 600; font-size: 18px; text-decoration: none;">Invoice App</a>
+    <a href="index.html" style="color: white; text-decoration: none; padding: 8px 14px; border-radius: 4px; transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='transparent'">← Back to Dashboard</a>
+  </div>
+</nav>
+
+<div class="container">
+  <h1>Edit Invoice</h1>
+  
+  <div id="loading" style="text-align: center; padding: 40px; color: #666;">Loading invoice...</div>
+  <div id="error" class="alert alert-error" style="display:none;"></div>
+
+  <!-- Customer selection -->
+  <div id="formContainer" style="display:none;">
+    <div class="customer-section">
+      <select id="customerSelect" required>
+        <option value="">Select Customer</option>
+      </select>
+      <button type="button" id="toggleCustomerBtn" class="btn btn-info">Add Customer</button>
+
+      <!-- Add customer form -->
+      <div id="addCustomerForm" style="display:none;">
+        <input type="text" id="newCustomerName" placeholder="Customer Name">
+        <input type="email" id="newCustomerEmail" placeholder="Customer Email">
+        <div id="customerMessage" class="alert" style="display:none;"></div>
+        <button type="button" id="addCustomerBtn" class="btn btn-success">Add</button>
+        <button type="button" id="cancelCustomerBtn" class="btn btn-secondary">Cancel</button>
+      </div>
+    </div>
+
+    <!-- Invoice details -->
+    <form id="editInvoiceForm">
+      <label>Invoice Date: <input type="date" name="invoice_date" required></label>
+      <label>Due Date: <input type="date" name="due_date" required></label>
+
+      <!-- Items table -->
+      <table id="itemsTable">
+        <thead>
+          <tr>
+            <th>Description</th>
+            <th>Qty</th>
+            <th>Price</th>
+            <th>Discount %</th>
+            <th>Discount Amount</th>
+            <th>Line Total</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Rows added dynamically -->
+        </tbody>
+      </table>
+      <button type="button" id="addItemBtn" class="btn btn-info">Add Item</button>
+
+      <!-- Invoice Discounts -->
+      <div style="margin: 20px 0; padding: 15px; background: #f9f9f9; border-radius: 4px;">
+        <h3>Invoice Discounts</h3>
+        <label>Discount by Percentage (%): 
+          <input type="number" id="invoice_discount_percent" name="invoice_discount_percent" value="0" min="0" max="100" step="0.01" onchange="recalc()">
+        </label>
+        <label style="margin-left: 20px;">Discount by Amount (R): 
+          <input type="number" id="invoice_discount_amount" name="invoice_discount_amount" value="0" min="0" step="0.01" onchange="recalc()">
+        </label>
+        <p style="font-size: 12px; color: #666;">Use either percentage OR amount, not both</p>
+      </div>
+
+      <!-- Totals -->
+      <table>
+        <tr><td>Subtotal</td><td id="subtotal">0.00</td></tr>
+        <tr><td>Tax (15%)</td><td id="tax">0.00</td></tr>
+        <tr id="invoiceDiscountRow" style="display:none"><td>Discount</td><td id="invoice_discount">0.00</td></tr>
+        <tr><td>Total</td><td id="total">0.00</td></tr>
+      </table>
+
+      <div id="formMessage" class="alert" style="display:none; margin-top: 15px;"></div>
+      <button type="submit" class="btn btn-primary">Update Invoice</button>
+      <a href="index.html" class="btn btn-secondary">Cancel</a>
+    </form>
+  </div>
+</div>
+
+<script src="assets/app.js"></script>
+<script>
+// Load and edit invoice
+document.addEventListener('DOMContentLoaded', () => {
+  const params = new URLSearchParams(window.location.search);
+  const invoiceId = params.get('id');
+  
+  if (!invoiceId) {
+    document.getElementById('error').textContent = 'No invoice ID provided';
+    document.getElementById('error').style.display = 'block';
+    document.getElementById('loading').style.display = 'none';
+    return;
+  }
+
+  fetch(`api/invoices.php?action=get_invoice&id=${invoiceId}`)
+    .then(res => res.json())
+    .then(data => {
+      if (!data.success) {
+        throw new Error(data.message || 'Failed to load invoice');
+      }
+      loadEditForm(data.invoice, data.items);
+    })
+    .catch(err => {
+      document.getElementById('error').textContent = 'Error: ' + err.message;
+      document.getElementById('error').style.display = 'block';
+    })
+    .finally(() => {
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('formContainer').style.display = 'block';
+    });
+});
+
+function loadEditForm(invoice, items) {
+  // Load customers
+  loadCustomers();
+  
+  // Set customer
+  setTimeout(() => {
+    document.getElementById('customerSelect').value = invoice.customer_id;
+  }, 100);
+
+  // Set dates
+  document.querySelector('[name="invoice_date"]').value = invoice.invoice_date;
+  document.querySelector('[name="due_date"]').value = invoice.due_date;
+
+  // Set discounts
+  document.getElementById('invoice_discount_percent').value = invoice.discount_percent || 0;
+  document.getElementById('invoice_discount_amount').value = invoice.discount_amount || 0;
+
+  // Load line items
+  const tbody = document.querySelector('#itemsTable tbody');
+  tbody.innerHTML = '';
+  items.forEach(item => {
+    const row = document.createElement('tr');
+    row.innerHTML = `
+      <td><input type="text" name="items[][desc]" value="${item.description}" required></td>
+      <td><input type="number" name="items[][qty]" value="${item.quantity}" min="1" onchange="recalc()"></td>
+      <td><input type="number" name="items[][price]" value="${item.unit_price}" min="0" step="0.01" onchange="recalc()"></td>
+      <td><input type="number" name="items[][discount_percent]" value="${item.discount_percent || 0}" min="0" max="100" onchange="recalc()"></td>
+      <td><input type="number" name="items[][discount_amount]" value="${item.discount_amount || 0}" min="0" step="0.01" onchange="recalc()"></td>
+      <td class="lineTotal">0.00</td>
+      <td><button type="button" onclick="this.closest('tr').remove(); recalc();">Remove</button></td>
+    `;
+    tbody.appendChild(row);
+  });
+
+  // Recalculate
+  recalc();
+
+  // Handle form submission
+  document.getElementById('editInvoiceForm').addEventListener('submit', submitEditInvoice);
+}
+
+function submitEditInvoice(e) {
+  e.preventDefault();
+  const messageDiv = document.getElementById('formMessage');
+  const params = new URLSearchParams(window.location.search);
+  const invoiceId = params.get('id');
+
+  // Validate customer
+  const customerId = document.getElementById('customerSelect').value;
+  if (!customerId) {
+    if (messageDiv) {
+      messageDiv.textContent = 'Please select a customer';
+      messageDiv.className = 'alert alert-error';
+      messageDiv.style.display = 'block';
+    }
+    return;
+  }
+
+  // Collect form data
+  const form = e.target;
+  const invoiceDate = form.querySelector('[name="invoice_date"]').value;
+  const dueDate = form.querySelector('[name="due_date"]').value;
+  const rows = document.querySelectorAll('#itemsTable tbody tr');
+
+  if (rows.length === 0) {
+    if (messageDiv) {
+      messageDiv.textContent = 'Please add at least one item';
+      messageDiv.className = 'alert alert-error';
+      messageDiv.style.display = 'block';
+    }
+    return;
+  }
+
+  const items = [];
+  rows.forEach(row => {
+    const desc = row.querySelector('[name*="[desc]"]').value.trim();
+    const qty = parseFloat(row.querySelector('[name*="[qty]"]').value) || 0;
+    const price = parseFloat(row.querySelector('[name*="[price]"]').value) || 0;
+    const discPerc = parseFloat(row.querySelector('[name*="[discount_percent]"]').value) || 0;
+    const discAmt = parseFloat(row.querySelector('[name*="[discount_amount]"]').value) || 0;
+
+    if (!desc) {
+      if (messageDiv) {
+        messageDiv.textContent = 'All items must have a description';
+        messageDiv.className = 'alert alert-error';
+        messageDiv.style.display = 'block';
+      }
+      throw new Error('Missing item description');
+    }
+    if (qty <= 0) {
+      if (messageDiv) {
+        messageDiv.textContent = 'Quantity must be greater than 0';
+        messageDiv.className = 'alert alert-error';
+        messageDiv.style.display = 'block';
+      }
+      throw new Error('Invalid quantity');
+    }
+    if (price < 0) {
+      if (messageDiv) {
+        messageDiv.textContent = 'Price cannot be negative';
+        messageDiv.className = 'alert alert-error';
+        messageDiv.style.display = 'block';
+      }
+      throw new Error('Invalid price');
+    }
+
+    items.push({ desc, qty, price, discount_percent: discPerc, discount_amount: discAmt });
+  });
+
+  try {
+    const invDiscPerc = parseFloat(document.getElementById('invoice_discount_percent').value) || 0;
+    const invDiscAmt = parseFloat(document.getElementById('invoice_discount_amount').value) || 0;
+
+    const payload = {
+      id: parseInt(invoiceId),
+      customer_id: parseInt(customerId),
+      invoice_date: invoiceDate,
+      due_date: dueDate,
+      items: items,
+      invoice_discount_percent: invDiscPerc,
+      invoice_discount_amount: invDiscAmt,
+      status: 'draft',
+      total: parseFloat(document.getElementById('total').textContent)
+    };
+
+    fetch('api/invoices.php?action=update_invoice', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          if (messageDiv) {
+            messageDiv.textContent = 'Invoice updated successfully! Redirecting...';
+            messageDiv.className = 'alert alert-success';
+            messageDiv.style.display = 'block';
+          }
+          setTimeout(() => window.location.href = `view_invoice.html?id=${invoiceId}`, 1500);
+        } else {
+          if (messageDiv) {
+            messageDiv.textContent = 'Error: ' + (data.message || 'Unknown error');
+            messageDiv.className = 'alert alert-error';
+            messageDiv.style.display = 'block';
+          }
+        }
+      })
+      .catch(err => {
+        if (messageDiv) {
+          messageDiv.textContent = 'Error: ' + err.message;
+          messageDiv.className = 'alert alert-error';
+          messageDiv.style.display = 'block';
+        }
+      });
+  } catch (err) {
+    console.error('Validation error:', err);
+  }
+}
+</script>
+</body>
+</html>

@@ -1,9 +1,10 @@
 <?php
-require './config/db.php';
+require '../config/db.php';
 
-$id = $_GET['id'] ?? null;
+$id = intval($_GET['id'] ?? 0);
 
-if (!$id) {
+if ($id <= 0) {
+    http_response_code(400);
     die('Invalid invoice ID');
 }
 

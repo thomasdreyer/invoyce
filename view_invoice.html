@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>View Invoice</title>
+  <link rel="stylesheet" href="assets/styles.css">
+  <style>
+    .invoice-display { max-width: 900px; margin: 0 auto; padding: 16px; background: white; }
+    .invoice-header { border-bottom: 2px solid #333; padding-bottom: 15px; margin-bottom: 20px; }
+    .invoice-details { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+    .invoice-section { padding: 10px 0; }
+    .invoice-section strong { display: block; color: #333; margin-bottom: 5px; }
+    .items-table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px; }
+    .items-table th, .items-table td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
+    .items-table th { background: #f5f5f5; font-weight: bold; }
+    .items-table .text-right { text-align: right; }
+    .totals-section { text-align: right; padding: 20px 0; border-top: 2px solid #333; }
+    .total-row { display: flex; justify-content: flex-end; gap: 40px; padding: 10px 0; }
+    .total-row strong { min-width: 150px; }
+    .btn-group { margin-top: 20px; text-align: center; }
+    .btn { margin: 0 5px; }
+    .error { color: #d32f2f; padding: 15px; background: #ffebee; border-radius: 4px; }
+    .loading { text-align: center; padding: 40px; color: #666; }
+    
+    @media (max-width: 767px) {
+      .invoice-display { padding: 12px; }
+      .invoice-details { grid-template-columns: 1fr; gap: 16px; }
+      .items-table { font-size: 13px; }
+      .items-table th, .items-table td { padding: 8px; }
+      .totals-section { text-align: left; padding: 16px 0; }
+      .total-row { flex-direction: column; gap: 8px; }
+      .total-row strong { min-width: 120px; }
+      .total-row span { text-align: right; }
+      .btn { margin: 4px 0; }
+      .btn-group { text-align: left; }
+      .invoice-header h1 { font-size: 20px; margin-bottom: 10px; }
+    }
+    
+    @media print {
+      .btn-group { display: none; }
+      body { margin: 0; padding: 0; }
+      .invoice-display { border: none; box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+
+<nav style="background: #2563eb; padding: 0 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+  <div style="max-width: 1100px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; height: 56px;">
+    <a href="index.html" style="color: white; font-weight: 600; font-size: 18px; text-decoration: none;">Invoice App</a>
+    <a href="index.html" style="color: white; text-decoration: none; padding: 8px 14px; border-radius: 4px; transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='transparent'">← Back to Dashboard</a>
+  </div>
+</nav>
+
+<div class="container">
+  <div id="loading" class="loading">Loading invoice...</div>
+  <div id="error" class="error" style="display:none;"></div>
+  <div id="invoiceView" class="invoice-display" style="display:none;">
+    <!-- Invoice will be loaded here -->
+  </div>
+  <div id="buttonGroup" class="btn-group" style="display:none;">
+    <a href="index.html" class="btn btn-primary">Back to Dashboard</a>
+    <a id="editBtn" href="#" class="btn btn-secondary">Edit</a>
+    <a id="pdfBtn" href="#" class="btn btn-info">Download PDF</a>
+    <a id="shareBtn" href="#" class="btn btn-secondary">Get Share Link</a>
+  </div>
+</div>
+
+<script src="assets/app.js"></script>
+<script>
+// Load invoice from URL parameter
+document.addEventListener('DOMContentLoaded', () => {
+  const params = new URLSearchParams(window.location.search);
+  const invoiceId = params.get('id');
+  
+  if (!invoiceId) {
+    document.getElementById('error').textContent = 'No invoice ID provided';
+    document.getElementById('error').style.display = 'block';
+    document.getElementById('loading').style.display = 'none';
+    return;
+  }
+
+  fetch(`api/invoices.php?action=get_invoice&id=${invoiceId}`)
+    .then(res => res.json())
+    .then(data => {
+      if (!data.success) {
+        throw new Error(data.message || 'Failed to load invoice');
+      }
+      displayInvoice(data.invoice, data.items);
+      document.getElementById('editBtn').href = `edit_invoice.html?id=${invoiceId}`;
+      document.getElementById('pdfBtn').href = `api/export_pdf.php?id=${invoiceId}`;
+      document.getElementById('shareBtn').onclick = () => generateShareLink(invoiceId);
+    })
+    .catch(err => {
+      document.getElementById('error').textContent = 'Error: ' + err.message;
+      document.getElementById('error').style.display = 'block';
+    })
+    .finally(() => {
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('invoiceView').style.display = 'block';
+      document.getElementById('buttonGroup').style.display = 'block';
+    });
+});
+
+function displayInvoice(invoice, items) {
+  const html = `
+    <div class="invoice-header">
+      <h1>Invoice ${invoice.invoice_number || invoice.id}</h1>
+      <p>Status: <strong>${invoice.status}</strong></p>
+    </div>
+    
+    <div class="invoice-details">
+      <div>
+        <div class="invoice-section">
+          <strong>Customer:</strong>
+          ${invoice.customer_name}<br>
+          ${invoice.email || ''}
+        </div>
+      </div>
+      <div>
+        <div class="invoice-section">
+          <strong>Invoice Date:</strong>
+          ${invoice.invoice_date}
+        </div>
+        <div class="invoice-section">
+          <strong>Due Date:</strong>
+          ${invoice.due_date}
+        </div>
+      </div>
+    </div>
+
+    <table class="items-table">
+      <thead>
+        <tr>
+          <th>Description</th>
+          <th class="text-right">Quantity</th>
+          <th class="text-right">Unit Price</th>
+          <th class="text-right">Discount</th>
+          <th class="text-right">Line Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${items.map(item => `
+          <tr>
+            <td>${item.description}</td>
+            <td class="text-right">${parseFloat(item.quantity).toFixed(2)}</td>
+            <td class="text-right">R${parseFloat(item.unit_price).toFixed(2)}</td>
+            <td class="text-right">
+              ${item.discount_percent > 0 ? item.discount_percent + '%' : 'R' + parseFloat(item.discount_amount).toFixed(2)}
+            </td>
+            <td class="text-right"><strong>R${parseFloat(item.line_total).toFixed(2)}</strong></td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+
+    <div class="totals-section">
+      <div class="total-row">
+        <strong>Subtotal:</strong>
+        <span>R${parseFloat(invoice.subtotal).toFixed(2)}</span>
+      </div>
+      <div class="total-row">
+        <strong>Tax (15%):</strong>
+        <span>R${parseFloat(invoice.tax).toFixed(2)}</span>
+      </div>
+      ${invoice.discount_percent > 0 || invoice.discount_amount > 0 ? `
+      <div class="total-row">
+        <strong>Discount:</strong>
+        <span>R${(parseFloat(invoice.discount_percent) > 0 ? 
+          (parseFloat(invoice.subtotal) + parseFloat(invoice.tax)) * (parseFloat(invoice.discount_percent)/100) :
+          parseFloat(invoice.discount_amount)).toFixed(2)}</span>
+      </div>
+      ` : ''}
+      <div class="total-row" style="border-top: 2px solid #333; padding-top: 15px;">
+        <strong style="font-size: 18px;">TOTAL:</strong>
+        <span style="font-size: 18px;">R${parseFloat(invoice.total).toFixed(2)}</span>
+      </div>
+    </div>
+  `;
+  document.getElementById('invoiceView').innerHTML = html;
+}
+
+function generateShareLink(invoiceId) {
+  fetch(`api/invoices.php?action=get_invoice&id=${invoiceId}`)
+    .then(res => res.json())
+    .then(data => {
+      if (data.success && data.invoice.share_token) {
+        const shareUrl = window.location.origin + window.location.pathname.replace('view_invoice.html', 'api/share_invoice.php') + '?token=' + data.invoice.share_token;
+        alert('Share Link:\n\n' + shareUrl);
+        navigator.clipboard.writeText(shareUrl).catch(err => console.error('Copy failed:', err));
+      }
+    })
+    .catch(err => alert('Error: ' + err.message));
+}
+</script>
+</body>
+</html>
